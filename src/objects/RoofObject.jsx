@@ -6,7 +6,13 @@ import { useLevelTileTextures } from '../LevelTileTexturesContext.jsx'
 import { TILE_PLANE_GEOMETRY } from '../levelGeometries.js'
 
 /** @param {number} ceilingY - Absolute world Y for the roof plane and collider. */
-function RoofObject({ position, tileSize, ceilingY }) {
+function RoofObject({
+  position,
+  tileSize,
+  ceilingY,
+  /** When false, visual meshes only (no roof slab collider). */
+  collisionsEnabled = true,
+}) {
   const { texture, pressedTexture, blackTexture } = useLevelTileTextures()
   const redMaterialRef = useRef(null)
   const blackMaterialRef = useRef(null)
@@ -96,9 +102,11 @@ function RoofObject({ position, tileSize, ceilingY }) {
           opacity={0}
         />
       </mesh>
-      <RigidBody type="fixed" colliders={false} position={[position[0], ceilingY, position[2]]}>
-        <CuboidCollider args={[tileSize / 2, 0.05, tileSize / 2]} />
-      </RigidBody>
+      {collisionsEnabled ? (
+        <RigidBody type="fixed" colliders={false} position={[position[0], ceilingY, position[2]]}>
+          <CuboidCollider args={[tileSize / 2, 0.05, tileSize / 2]} />
+        </RigidBody>
+      ) : null}
     </>
   )
 }

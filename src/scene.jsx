@@ -25,8 +25,8 @@ const UPPER_WALL_BASE_Y = WALL_HEIGHT;
 const GRID_CELLS = 40;
 const SCENE_OFFSET_X = 0.5;
 const SCENE_OFFSET_Z = 0.5;
-/** Set true to re-enable wall CuboidCollider rigid bodies (many bodies = Rapier cost). */
-const WALL_COLLISIONS_ENABLED = false;
+/** Wall + roof CuboidCollider rigid bodies (many bodies = Rapier cost when true). */
+const WALL_COLLISIONS_ENABLED = true;
 /** World Y for floor visuals and single ground collider (top of slab). */
 const LEVEL_FLOOR_Y = -1;
 /** Thin ground slab center Y (half-height 0.05 → top surface at LEVEL_FLOOR_Y). */
@@ -37,6 +37,22 @@ const GROUND_PLANE_HALF_EXTENT = (GRID_CELLS * TILE_SIZE) / 2;
  * All RigidBody/Collider nodes stay mounted — use for render-only perf testing.
  */
 const PHYSICS_PAUSED_FOR_PERF_TEST = false;
+
+function SpinningCube() {
+  const meshRef = useRef(null);
+  useFrame((_, delta) => {
+    const m = meshRef.current;
+    if (!m) return;
+    m.rotation.x += delta * 0.7;
+    m.rotation.y += delta * 1.1;
+  });
+  return (
+    <mesh ref={meshRef} position={[0, 1, 0]}>
+      <boxGeometry args={[0.5, 0.5, 0.5]} />
+      <meshStandardMaterial color="#7c9cff" metalness={0.25} roughness={0.45} />
+    </mesh>
+  );
+}
 
 function SceneLighting({ onFadeComplete }) {
   const ambientRef = useRef(null);
@@ -641,6 +657,7 @@ function LevelGrid({
           position={position}
           tileSize={TILE_SIZE}
           ceilingY={roofCeilingY}
+          collisionsEnabled={wallCollisionsEnabled}
         />
       ))}
     </>
@@ -719,6 +736,7 @@ function Scene() {
       >
         <PlayerController spawnPosition={playerSpawn} />
         <SceneLighting onFadeComplete={advanceToNextLevel} />
+        <SpinningCube />
         <TileSpacingGrid />
         <LevelTileTexturesProvider>
           <LevelGrid

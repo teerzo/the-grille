@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Euler, Quaternion, Vector3 } from 'three'
 import { CapsuleCollider, RigidBody, useBeforePhysicsStep } from '@react-three/rapier'
@@ -208,6 +208,22 @@ function PlayerController({ spawnPosition = [0, 0.65, 0] }) {
     }
   }, [spawnPosition])
 
+  const logCollisionEnter = useCallback((payload) => {
+    console.log('[physics] collision enter', payload)
+  }, [])
+
+  const logCollisionExit = useCallback((payload) => {
+    console.log('[physics] collision exit', payload)
+  }, [])
+
+  const logIntersectionEnter = useCallback((payload) => {
+    console.log('[physics] intersection enter (sensor)', payload)
+  }, [])
+
+  const logIntersectionExit = useCallback((payload) => {
+    console.log('[physics] intersection exit (sensor)', payload)
+  }, [])
+
   useBeforePhysicsStep(() => {
     const playerBody = playerBodyRef.current
     if (!playerBody || isDeadRef.current || activeCameraIndex.current !== 0) return
@@ -300,6 +316,10 @@ function PlayerController({ spawnPosition = [0, 0.65, 0] }) {
         angularDamping={0}
         ccd
         position={spawnPosition}
+        onCollisionEnter={logCollisionEnter}
+        onCollisionExit={logCollisionExit}
+        onIntersectionEnter={logIntersectionEnter}
+        onIntersectionExit={logIntersectionExit}
       >
         <CapsuleCollider args={[0.35, 0.3]} friction={0.8} restitution={0} />
         <group ref={playerVisualRef}>
