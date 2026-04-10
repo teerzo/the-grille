@@ -663,7 +663,7 @@ function findPlayerSpawn(baseRows, playerChar) {
 }
 
 function Scene() {
-  const levelTexts = useMemo(() => [level1Text, level2Text], []);
+  const levelTexts = useMemo(() => [level1Text], []);
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const { baseRows, upperWallLayers, roofRows } = useMemo(
     () => parseLevelLayers(levelTexts[currentLevelIndex]),
