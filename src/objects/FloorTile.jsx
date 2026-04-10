@@ -1,16 +1,9 @@
-import { useEffect, useRef } from 'react'
-import { useFrame, useLoader } from '@react-three/fiber'
+import { memo, useEffect, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
-import { MathUtils, SRGBColorSpace, TextureLoader } from 'three'
-
-function DebugWireBox({ size, offset = [0, 0, 0] }) {
-  return (
-    <mesh position={offset}>
-      <boxGeometry args={size} />
-      <meshBasicMaterial color="#ff2d2d" wireframe />
-    </mesh>
-  )
-}
+import { MathUtils } from 'three'
+import { useLevelTileTextures } from '../LevelTileTexturesContext.jsx'
+import { TILE_PLANE_GEOMETRY } from '../levelGeometries.js'
 
 function FloorTile({
   position,
@@ -18,13 +11,12 @@ function FloorTile({
   tileKey,
   isHovered,
   onRegister,
-  showDebug,
   /** When false, only meshes; no Rapier floor collider (use global ground plane). */
   collisionsEnabled = true,
+  /** When true, skip the main textured plane (drawn by InstancedFloors). */
+  hideBasePlane = false,
 }) {
-  const texture = useLoader(TextureLoader, '/textures/floor-tile-32.png')
-  const pressedTexture = useLoader(TextureLoader, '/textures/floor-tile-32-red.png')
-  const blackTexture = useLoader(TextureLoader, '/textures/floor-tile-32-black.png')
+  const { texture, pressedTexture, blackTexture } = useLevelTileTextures()
   const meshRef = useRef(null)
   const redMaterialRef = useRef(null)
   const blackMaterialRef = useRef(null)
@@ -35,17 +27,15 @@ function FloorTile({
     redOpacity: 0,
     blackOpacity: 0,
   })
-  texture.colorSpace = SRGBColorSpace
-  pressedTexture.colorSpace = SRGBColorSpace
-  blackTexture.colorSpace = SRGBColorSpace
 
   useEffect(() => {
+    if (hideBasePlane) return undefined
     const mesh = meshRef.current
     if (!mesh) return undefined
     mesh.userData.tileKey = tileKey
     onRegister(tileKey, mesh)
     return () => onRegister(tileKey, null)
-  }, [onRegister, tileKey])
+  }, [hideBasePlane, onRegister, tileKey])
 
   useEffect(() => {
     const onButtonPressed = (event) => {
@@ -66,7 +56,7 @@ function FloorTile({
 
     window.addEventListener('button-pressed', onButtonPressed)
     return () => window.removeEventListener('button-pressed', onButtonPressed)
-  }, [])
+  }, [position])
 
   useFrame((_, delta) => {
     const state = effectState.current
@@ -104,16 +94,14 @@ function FloorTile({
 
   return (
     <>
-      <mesh
-        ref={meshRef}
-        position={position}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <planeGeometry args={[tileSize, tileSize]} />
-        <meshStandardMaterial map={texture} color={isHovered ? '#ffd54a' : '#ffffff'} />
-      </mesh>
+      {!hideBasePlane ? (
+        <mesh ref={meshRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
+          <primitive object={TILE_PLANE_GEOMETRY} attach="geometry" />
+          <meshStandardMaterial map={texture} color={isHovered ? '#ffd54a' : '#ffffff'} />
+        </mesh>
+      ) : null}
       <mesh position={[position[0], position[1] + 0.001, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[tileSize, tileSize]} />
+        <primitive object={TILE_PLANE_GEOMETRY} attach="geometry" />
         <meshStandardMaterial
           ref={redMaterialRef}
           map={pressedTexture}
@@ -122,7 +110,7 @@ function FloorTile({
         />
       </mesh>
       <mesh position={[position[0], position[1] + 0.002, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[tileSize, tileSize]} />
+        <primitive object={TILE_PLANE_GEOMETRY} attach="geometry" />
         <meshStandardMaterial
           ref={blackMaterialRef}
           map={blackTexture}
@@ -139,4 +127,18 @@ function FloorTile({
   )
 }
 
-export default FloorTile
+function propsEqual(prev, next) {
+  return (
+    prev.tileKey === next.tileKey &&
+    prev.position[0] === next.position[0] &&
+    prev.position[1] === next.position[1] &&
+    prev.position[2] === next.position[2] &&
+    prev.tileSize === next.tileSize &&
+    prev.isHovered === next.isHovered &&
+    prev.collisionsEnabled === next.collisionsEnabled &&
+    prev.hideBasePlane === next.hideBasePlane &&
+    prev.onRegister === next.onRegister
+  )
+}
+
+export default memo(FloorTile, propsEqual)

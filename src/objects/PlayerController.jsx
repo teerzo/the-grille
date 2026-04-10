@@ -51,6 +51,7 @@ function PlayerController({ spawnPosition = [0, 0.65, 0] }) {
     left: false,
     right: false,
     up: false,
+    down: false,
   })
   const activeCameraIndex = useRef(0)
   const cameraStates = useRef([
@@ -113,6 +114,9 @@ function PlayerController({ spawnPosition = [0, 0.65, 0] }) {
           moveState.current.up = true
         }
       }
+      if (event.code === 'ControlLeft' && activeCameraIndex.current === 1) {
+        moveState.current.down = true
+      }
       if (event.code === 'Digit1') {
         activeCameraIndex.current = 0
         applyActiveCameraState()
@@ -130,6 +134,7 @@ function PlayerController({ spawnPosition = [0, 0.65, 0] }) {
       if (event.code === 'KeyA') moveState.current.left = false
       if (event.code === 'KeyD') moveState.current.right = false
       if (event.code === 'Space') moveState.current.up = false
+      if (event.code === 'ControlLeft') moveState.current.down = false
     }
 
     const onMouseMove = (event) => {
@@ -170,6 +175,7 @@ function PlayerController({ spawnPosition = [0, 0.65, 0] }) {
       moveState.current.left = false
       moveState.current.right = false
       moveState.current.up = false
+      moveState.current.down = false
       if (document.pointerLockElement) {
         document.exitPointerLock()
       }
@@ -261,6 +267,9 @@ function PlayerController({ spawnPosition = [0, 0.65, 0] }) {
       if (moveState.current.right) activeState.position.addScaledVector(FP_RIGHT, step)
       if (moveState.current.up) {
         activeState.position.y += MOVE_SPEED * delta
+      }
+      if (moveState.current.down) {
+        activeState.position.y -= MOVE_SPEED * delta
       }
       camera.position.copy(activeState.position)
     }

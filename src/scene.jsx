@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { GridHelper, Raycaster } from "three";
 import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
@@ -10,6 +10,8 @@ import LaserObject from "./objects/LaserObject.jsx";
 import PlayerController from "./objects/PlayerController.jsx";
 import ButtonPillar from "./objects/ButtonPillar.jsx";
 import RoofObject from "./objects/RoofObject.jsx";
+import InstancedFloors from "./objects/InstancedFloors.jsx";
+import { LevelTileTexturesProvider } from "./LevelTileTexturesContext.jsx";
 const FLOOR_CHAR = "F";
 const WALL_CHAR = "W";
 const LASER_CHAR = "L";
@@ -34,7 +36,7 @@ const GROUND_PLANE_HALF_EXTENT = (GRID_CELLS * TILE_SIZE) / 2;
  * When true, Rapier does not step the world (no forces, collisions, or body motion).
  * All RigidBody/Collider nodes stay mounted — use for render-only perf testing.
  */
-const PHYSICS_PAUSED_FOR_PERF_TEST = true;
+const PHYSICS_PAUSED_FOR_PERF_TEST = false;
 
 function SceneLighting({ onFadeComplete }) {
   const ambientRef = useRef(null);
@@ -454,7 +456,14 @@ function LevelGrid({
   const [hoveredTileKey, setHoveredTileKey] = useState(null);
   const [activeCameraIndex, setActiveCameraIndex] = useState(0);
   const tileMeshMap = useRef(new Map());
+  const instancedFloorsRef = useRef(null);
   const raycaster = useMemo(() => new Raycaster(), []);
+
+  const hoveredFloorIndex = useMemo(() => {
+    if (!hoveredTileKey || !hoveredTileKey.startsWith("floor-")) return -1;
+    const n = Number.parseInt(hoveredTileKey.slice("floor-".length), 10);
+    return Number.isFinite(n) ? n : -1;
+  }, [hoveredTileKey]);
 
   baseRows.forEach((row, rowIndex) => {
     row.split("").forEach((cell, colIndex) => {
@@ -485,13 +494,13 @@ function LevelGrid({
     });
   });
 
-  const registerTileMesh = (tileKey, mesh) => {
+  const registerTileMesh = useCallback((tileKey, mesh) => {
     if (mesh) {
       tileMeshMap.current.set(tileKey, mesh);
     } else {
       tileMeshMap.current.delete(tileKey);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const onActiveCameraChanged = (event) => {
@@ -513,13 +522,24 @@ function LevelGrid({
     // Hover raycasts only matter for camera 2; skip in FP to avoid per-frame cost while moving.
     if (activeCameraIndex !== 1) return;
 
-    const tileMeshes = [...tileMeshMap.current.values()];
-    if (tileMeshes.length === 0) return;
+    const floorMesh = instancedFloorsRef.current;
+    const wallMeshes = [...tileMeshMap.current.values()];
+    const targets = [];
+    if (floorMesh) targets.push(floorMesh);
+    targets.push(...wallMeshes);
+    if (targets.length === 0) return;
 
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
-    const hits = raycaster.intersectObjects(tileMeshes, false);
-    const nextHovered =
-      hits.length > 0 ? hits[0].object.userData.tileKey : null;
+    const hits = raycaster.intersectObjects(targets, false);
+    let nextHovered = null;
+    if (hits.length > 0) {
+      const h = hits[0];
+      if (h.object.isInstancedMesh && h.instanceId != null) {
+        nextHovered = `floor-${h.instanceId}`;
+      } else {
+        nextHovered = h.object.userData.tileKey ?? null;
+      }
+    }
 
     setHoveredTileKey((prev) => (prev === nextHovered ? prev : nextHovered));
   });
@@ -535,6 +555,11 @@ function LevelGrid({
           restitution={0}
         />
       </RigidBody>
+      <InstancedFloors
+        ref={instancedFloorsRef}
+        positions={floorPositions}
+        hoveredFloorIndex={hoveredFloorIndex}
+      />
       {floorPositions.map((position, index) => {
         const tileKey = `floor-${index}`;
         return (
@@ -543,9 +568,9 @@ function LevelGrid({
             tileKey={tileKey}
             position={position}
             tileSize={TILE_SIZE}
-            isHovered={activeCameraIndex === 1 && hoveredTileKey === tileKey}
+            isHovered={false}
             onRegister={registerTileMesh}
-            showDebug={showDebug}
+            hideBasePlane
             collisionsEnabled={false}
           />
         );
@@ -695,18 +720,20 @@ function Scene() {
         <PlayerController spawnPosition={playerSpawn} />
         <SceneLighting onFadeComplete={advanceToNextLevel} />
         <TileSpacingGrid />
-        {/* <LevelGrid
-          baseRows={baseRows}
-          upperWallLayers={upperWallLayers}
-          roofRows={roofRows}
-          floorChar={FLOOR_CHAR}
-          wallChar={WALL_CHAR}
-          playerChar={PLAYER_CHAR}
-          roofChar={ROOF_CHAR}
-          showDebug={showPhysicsDebug}
-          roofHeight={roofHeight}
-          wallCollisionsEnabled={WALL_COLLISIONS_ENABLED}
-        /> */}
+        <LevelTileTexturesProvider>
+          <LevelGrid
+            baseRows={baseRows}
+            upperWallLayers={upperWallLayers}
+            roofRows={roofRows}
+            floorChar={FLOOR_CHAR}
+            wallChar={WALL_CHAR}
+            playerChar={PLAYER_CHAR}
+            roofChar={ROOF_CHAR}
+            showDebug={showPhysicsDebug}
+            roofHeight={roofHeight}
+            wallCollisionsEnabled={WALL_COLLISIONS_ENABLED}
+          />
+        </LevelTileTexturesProvider>
       </Physics>
     </>
   );

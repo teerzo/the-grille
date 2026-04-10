@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { useFrame, useLoader } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
-import { MathUtils, SRGBColorSpace, TextureLoader } from 'three'
+import { MathUtils } from 'three'
+import { useLevelTileTextures } from '../LevelTileTexturesContext.jsx'
+import { TILE_PLANE_GEOMETRY } from '../levelGeometries.js'
 
 /** @param {number} ceilingY - Absolute world Y for the roof plane and collider. */
 function RoofObject({ position, tileSize, ceilingY }) {
-  const texture = useLoader(TextureLoader, '/textures/floor-tile-32.png')
-  const pressedTexture = useLoader(TextureLoader, '/textures/floor-tile-32-red.png')
-  const blackTexture = useLoader(TextureLoader, '/textures/floor-tile-32-black.png')
+  const { texture, pressedTexture, blackTexture } = useLevelTileTextures()
   const redMaterialRef = useRef(null)
   const blackMaterialRef = useRef(null)
   const effectState = useRef({
@@ -17,10 +17,6 @@ function RoofObject({ position, tileSize, ceilingY }) {
     redOpacity: 0,
     blackOpacity: 0,
   })
-  texture.colorSpace = SRGBColorSpace
-  pressedTexture.colorSpace = SRGBColorSpace
-  blackTexture.colorSpace = SRGBColorSpace
-
   useEffect(() => {
     const onButtonPressed = (event) => {
       const buttonPosition = event?.detail?.position
@@ -79,11 +75,11 @@ function RoofObject({ position, tileSize, ceilingY }) {
   return (
     <>
       <mesh position={[position[0], ceilingY, position[2]]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[tileSize, tileSize]} />
+        <primitive object={TILE_PLANE_GEOMETRY} attach="geometry" />
         <meshStandardMaterial map={texture} color="#d8d8d8" />
       </mesh>
       <mesh position={[position[0], ceilingY - 0.001, position[2]]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[tileSize, tileSize]} />
+        <primitive object={TILE_PLANE_GEOMETRY} attach="geometry" />
         <meshStandardMaterial
           ref={redMaterialRef}
           map={pressedTexture}
@@ -92,7 +88,7 @@ function RoofObject({ position, tileSize, ceilingY }) {
         />
       </mesh>
       <mesh position={[position[0], ceilingY - 0.002, position[2]]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[tileSize, tileSize]} />
+        <primitive object={TILE_PLANE_GEOMETRY} attach="geometry" />
         <meshStandardMaterial
           ref={blackMaterialRef}
           map={blackTexture}

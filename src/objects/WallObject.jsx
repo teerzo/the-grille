@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { useFrame, useLoader } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
-import { FrontSide, MathUtils, SRGBColorSpace, TextureLoader } from 'three'
+import { FrontSide, MathUtils } from 'three'
+import { useLevelTileTextures } from '../LevelTileTexturesContext.jsx'
+import { WALL_PLANE_GEOMETRY } from '../levelGeometries.js'
 
 function DebugWireBox({ size, offset = [0, 0, 0] }) {
   return (
@@ -25,9 +27,7 @@ function WallObject({
   /** When false, visual meshes stay; Rapier wall colliders are omitted (perf testing). */
   collisionsEnabled = true,
 }) {
-  const texture = useLoader(TextureLoader, '/textures/floor-tile-32.png')
-  const pressedTexture = useLoader(TextureLoader, '/textures/floor-tile-32-red.png')
-  const blackTexture = useLoader(TextureLoader, '/textures/floor-tile-32-black.png')
+  const { texture, pressedTexture, blackTexture } = useLevelTileTextures()
   const meshRef = useRef(null)
   const redMaterialRef = useRef(null)
   const blackMaterialRef = useRef(null)
@@ -38,10 +38,6 @@ function WallObject({
     redOpacity: 0,
     blackOpacity: 0,
   })
-  texture.colorSpace = SRGBColorSpace
-  pressedTexture.colorSpace = SRGBColorSpace
-  blackTexture.colorSpace = SRGBColorSpace
-
   useEffect(() => {
     const mesh = meshRef.current
     if (!mesh) return undefined
@@ -110,11 +106,11 @@ function WallObject({
   return (
     <>
       <mesh ref={meshRef} position={[position[0], wallCenterY, position[2]]} rotation={[0, yaw, 0]}>
-        <planeGeometry args={[tileSize, wallHeight]} />
+        <primitive object={WALL_PLANE_GEOMETRY} attach="geometry" />
         <meshStandardMaterial map={texture} side={FrontSide} color={isHovered ? '#ffd54a' : '#ffffff'} />
       </mesh>
       <mesh position={[position[0], wallCenterY, position[2]]} rotation={[0, yaw, 0]}>
-        <planeGeometry args={[tileSize, wallHeight]} />
+        <primitive object={WALL_PLANE_GEOMETRY} attach="geometry" />
         <meshStandardMaterial
           ref={redMaterialRef}
           map={pressedTexture}
@@ -124,7 +120,7 @@ function WallObject({
         />
       </mesh>
       <mesh position={[position[0], wallCenterY, position[2]]} rotation={[0, yaw, 0]}>
-        <planeGeometry args={[tileSize, wallHeight]} />
+        <primitive object={WALL_PLANE_GEOMETRY} attach="geometry" />
         <meshStandardMaterial
           ref={blackMaterialRef}
           map={blackTexture}
