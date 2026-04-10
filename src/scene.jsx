@@ -37,6 +37,10 @@ const GROUND_PLANE_HALF_EXTENT = (GRID_CELLS * TILE_SIZE) / 2;
  * All RigidBody/Collider nodes stay mounted — use for render-only perf testing.
  */
 const PHYSICS_PAUSED_FOR_PERF_TEST = false;
+/**
+ * When true, camera 2 uses a screen-center Raycaster for floor/wall hover highlights.
+ */
+const TILE_HOVER_RAYCAST_ENABLED = false;
 
 function SpinningCube() {
   const meshRef = useRef(null);
@@ -535,6 +539,7 @@ function LevelGrid({
   }, []);
 
   useFrame(({ camera }) => {
+    if (!TILE_HOVER_RAYCAST_ENABLED) return;
     // Hover raycasts only matter for camera 2; skip in FP to avoid per-frame cost while moving.
     if (activeCameraIndex !== 1) return;
 
