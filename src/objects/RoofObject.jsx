@@ -3,7 +3,8 @@ import { useFrame, useLoader } from '@react-three/fiber'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { MathUtils, SRGBColorSpace, TextureLoader } from 'three'
 
-function RoofObject({ position, tileSize, roofHeight }) {
+/** @param {number} ceilingY - Absolute world Y for the roof plane and collider. */
+function RoofObject({ position, tileSize, ceilingY }) {
   const texture = useLoader(TextureLoader, '/textures/floor-tile-32.png')
   const pressedTexture = useLoader(TextureLoader, '/textures/floor-tile-32-red.png')
   const blackTexture = useLoader(TextureLoader, '/textures/floor-tile-32-black.png')
@@ -26,7 +27,7 @@ function RoofObject({ position, tileSize, roofHeight }) {
       if (!buttonPosition) return
 
       const dx = position[0] - buttonPosition[0]
-      const dy = roofHeight - buttonPosition[1]
+      const dy = ceilingY - buttonPosition[1]
       const dz = position[2] - buttonPosition[2]
       const distance = Math.hypot(dx, dy, dz)
 
@@ -39,7 +40,7 @@ function RoofObject({ position, tileSize, roofHeight }) {
 
     window.addEventListener('button-pressed', onButtonPressed)
     return () => window.removeEventListener('button-pressed', onButtonPressed)
-  }, [])
+  }, [ceilingY, position])
 
   useFrame((_, delta) => {
     const state = effectState.current
@@ -77,11 +78,11 @@ function RoofObject({ position, tileSize, roofHeight }) {
 
   return (
     <>
-      <mesh position={[position[0], roofHeight, position[2]]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[position[0], ceilingY, position[2]]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[tileSize, tileSize]} />
         <meshStandardMaterial map={texture} color="#d8d8d8" />
       </mesh>
-      <mesh position={[position[0], roofHeight - 0.001, position[2]]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[position[0], ceilingY - 0.001, position[2]]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[tileSize, tileSize]} />
         <meshStandardMaterial
           ref={redMaterialRef}
@@ -90,7 +91,7 @@ function RoofObject({ position, tileSize, roofHeight }) {
           opacity={0}
         />
       </mesh>
-      <mesh position={[position[0], roofHeight - 0.002, position[2]]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[position[0], ceilingY - 0.002, position[2]]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[tileSize, tileSize]} />
         <meshStandardMaterial
           ref={blackMaterialRef}
@@ -99,7 +100,7 @@ function RoofObject({ position, tileSize, roofHeight }) {
           opacity={0}
         />
       </mesh>
-      <RigidBody type="fixed" colliders={false} position={[position[0], roofHeight, position[2]]}>
+      <RigidBody type="fixed" colliders={false} position={[position[0], ceilingY, position[2]]}>
         <CuboidCollider args={[tileSize / 2, 0.05, tileSize / 2]} />
       </RigidBody>
     </>

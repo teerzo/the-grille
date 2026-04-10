@@ -12,7 +12,19 @@ function DebugWireBox({ size, offset = [0, 0, 0] }) {
   )
 }
 
-function WallObject({ position, wallHeight, tileSize, wallKey, yaw, isHovered, onRegister, showDebug, baseY = 0 }) {
+function WallObject({
+  position,
+  wallHeight,
+  tileSize,
+  wallKey,
+  yaw,
+  isHovered,
+  onRegister,
+  showDebug,
+  baseY = 0,
+  /** When false, visual meshes stay; Rapier wall colliders are omitted (perf testing). */
+  collisionsEnabled = true,
+}) {
   const texture = useLoader(TextureLoader, '/textures/floor-tile-32.png')
   const pressedTexture = useLoader(TextureLoader, '/textures/floor-tile-32-red.png')
   const blackTexture = useLoader(TextureLoader, '/textures/floor-tile-32-black.png')
@@ -44,7 +56,7 @@ function WallObject({ position, wallHeight, tileSize, wallKey, yaw, isHovered, o
       if (!buttonPosition) return
 
       const dx = position[0] - buttonPosition[0]
-      const dy = baseY + wallHeight / 2 - buttonPosition[1]
+      const dy = position[1] + baseY + wallHeight / 2 - buttonPosition[1]
       const dz = position[2] - buttonPosition[2]
       const distance = Math.hypot(dx, dy, dz)
 
@@ -57,7 +69,7 @@ function WallObject({ position, wallHeight, tileSize, wallKey, yaw, isHovered, o
 
     window.addEventListener('button-pressed', onButtonPressed)
     return () => window.removeEventListener('button-pressed', onButtonPressed)
-  }, [])
+  }, [position, baseY, wallHeight])
 
   useFrame((_, delta) => {
     const state = effectState.current
@@ -93,13 +105,15 @@ function WallObject({ position, wallHeight, tileSize, wallKey, yaw, isHovered, o
     }
   })
 
+  const wallCenterY = position[1] + baseY + wallHeight / 2
+
   return (
     <>
-      <mesh ref={meshRef} position={[position[0], baseY + wallHeight / 2, position[2]]} rotation={[0, yaw, 0]}>
+      <mesh ref={meshRef} position={[position[0], wallCenterY, position[2]]} rotation={[0, yaw, 0]}>
         <planeGeometry args={[tileSize, wallHeight]} />
         <meshStandardMaterial map={texture} side={FrontSide} color={isHovered ? '#ffd54a' : '#ffffff'} />
       </mesh>
-      <mesh position={[position[0], baseY + wallHeight / 2, position[2]]} rotation={[0, yaw, 0]}>
+      <mesh position={[position[0], wallCenterY, position[2]]} rotation={[0, yaw, 0]}>
         <planeGeometry args={[tileSize, wallHeight]} />
         <meshStandardMaterial
           ref={redMaterialRef}
@@ -109,7 +123,7 @@ function WallObject({ position, wallHeight, tileSize, wallKey, yaw, isHovered, o
           opacity={0}
         />
       </mesh>
-      <mesh position={[position[0], baseY + wallHeight / 2, position[2]]} rotation={[0, yaw, 0]}>
+      <mesh position={[position[0], wallCenterY, position[2]]} rotation={[0, yaw, 0]}>
         <planeGeometry args={[tileSize, wallHeight]} />
         <meshStandardMaterial
           ref={blackMaterialRef}
@@ -119,10 +133,11 @@ function WallObject({ position, wallHeight, tileSize, wallKey, yaw, isHovered, o
           opacity={0}
         />
       </mesh>
-      <RigidBody type="fixed" colliders={false} position={[position[0], baseY + wallHeight / 2, position[2]]} rotation={[0, yaw, 0]}>
-        <CuboidCollider args={[tileSize / 2, wallHeight / 2, 0.05]} />
-        {/* {showDebug ? <DebugWireBox size={[tileSize, wallHeight, 0.1]} /> : null} */}
-      </RigidBody>
+      {collisionsEnabled ? (
+        <RigidBody type="fixed" colliders={false} position={[position[0], wallCenterY, position[2]]} rotation={[0, yaw, 0]}>
+          <CuboidCollider args={[tileSize / 2, wallHeight / 2, 0.05]} />
+        </RigidBody>
+      ) : null}
     </>
   )
 }

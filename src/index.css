@@ -105,6 +105,21 @@ body,
   height: 100% !important;
 }
 
+.fps-hud {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 200;
+  padding: 4px 8px;
+  font: 12px/1.2 var(--mono);
+  color: var(--text-h);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  pointer-events: none;
+  min-width: 10em;
+}
+
 .death-fade-overlay {
   position: fixed;
   inset: 0;

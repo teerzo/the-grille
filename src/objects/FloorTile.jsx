@@ -12,7 +12,16 @@ function DebugWireBox({ size, offset = [0, 0, 0] }) {
   )
 }
 
-function FloorTile({ position, tileSize, tileKey, isHovered, onRegister, showDebug }) {
+function FloorTile({
+  position,
+  tileSize,
+  tileKey,
+  isHovered,
+  onRegister,
+  showDebug,
+  /** When false, only meshes; no Rapier floor collider (use global ground plane). */
+  collisionsEnabled = true,
+}) {
   const texture = useLoader(TextureLoader, '/textures/floor-tile-32.png')
   const pressedTexture = useLoader(TextureLoader, '/textures/floor-tile-32-red.png')
   const blackTexture = useLoader(TextureLoader, '/textures/floor-tile-32-black.png')
@@ -121,10 +130,11 @@ function FloorTile({ position, tileSize, tileKey, isHovered, onRegister, showDeb
           opacity={0}
         />
       </mesh>
-      <RigidBody type="fixed" colliders={false} position={[position[0], -0.05, position[2]]}>
-        <CuboidCollider args={[tileSize / 2, 0.05, tileSize / 2]} />
-        {/* {showDebug ? <DebugWireBox size={[tileSize, 0.1, tileSize]} /> : null} */}
-      </RigidBody>
+      {collisionsEnabled ? (
+        <RigidBody type="fixed" colliders={false} position={[position[0], position[1] - 0.05, position[2]]}>
+          <CuboidCollider args={[tileSize / 2, 0.05, tileSize / 2]} />
+        </RigidBody>
+      ) : null}
     </>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Euler, Quaternion, Vector3 } from 'three'
-import { CapsuleCollider, RigidBody, useAfterPhysicsStep, useBeforePhysicsStep } from '@react-three/rapier'
+import { CapsuleCollider, RigidBody, useBeforePhysicsStep } from '@react-three/rapier'
 import PlayerObject from './PlayerObject.jsx'
 
 const FP_EULER = new Euler(0, 0, 0, 'YXZ')
@@ -10,11 +10,13 @@ const PLAYER_YAW_EULER = new Euler(0, 0, 0, 'YXZ')
 const PLAYER_QUAT = new Quaternion()
 const FP_FORWARD = new Vector3()
 const FP_RIGHT = new Vector3()
-const PLAYER_GROUND_Y = 0.65
+const TMP_WORLD = new Vector3()
+/** Matches spawn / floor surface at LEVEL_FLOOR_Y (-1) + capsule offset (~0.65). */
+const PLAYER_GROUND_Y = -0.35
 const JUMP_VELOCITY = 5
 const MOVE_SPEED = 4
-/** Horizontal velocity smoothing; dt matches default Rapier Physics timeStep (1/60). */
-const MOVE_SMOOTHING = 16
+/** Horizontal velocity smoothing; tuned for fixed physics substeps (see Physics timeStep). */
+const MOVE_SMOOTHING = 18
 const PHYSICS_DT = 1 / 60
 
 function CameraMarker({ markerRef, position }) {
@@ -22,7 +24,7 @@ function CameraMarker({ markerRef, position }) {
     <group ref={markerRef} position={position}>
       <group rotation={[0, Math.PI / 2, 0]}>
         <mesh position={[0, 0, 0]}>
-          {/* <boxGeometry args={[0.28, 0.18, 0.18]} /> */}
+          <boxGeometry args={[0.28, 0.18, 0.18]} />
           <meshStandardMaterial color="#d83a3a" />
         </mesh>
         <mesh position={[0.18, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
@@ -30,7 +32,7 @@ function CameraMarker({ markerRef, position }) {
           <meshStandardMaterial color="#3a3a3a" />
         </mesh>
         <mesh position={[-0.08, 0.12, 0]}>
-          {/* <boxGeometry args={[0.1, 0.05, 0.06]} /> */}
+          <boxGeometry args={[0.1, 0.05, 0.06]} />
           <meshStandardMaterial color="#d83a3a" />
         </mesh>
       </group>
@@ -41,6 +43,8 @@ function CameraMarker({ markerRef, position }) {
 function PlayerController({ spawnPosition = [0, 0.65, 0] }) {
   const { camera, gl } = useThree()
   const playerBodyRef = useRef(null)
+  /** RigidBody child at local origin; world position matches Rapier-interpolated body pose. */
+  const playerVisualRef = useRef(null)
   const moveState = useRef({
     forward: false,
     backward: false,
@@ -233,32 +237,24 @@ function PlayerController({ spawnPosition = [0, 0.65, 0] }) {
     playerBody.setRotation({ x: PLAYER_QUAT.x, y: PLAYER_QUAT.y, z: PLAYER_QUAT.z, w: PLAYER_QUAT.w }, true)
   })
 
-  useAfterPhysicsStep(() => {
-    const playerBody = playerBodyRef.current
-    if (!playerBody || activeCameraIndex.current !== 0) return
-
-    const playerPos = playerBody.translation()
-    const camOne = cameraStates.current[0]
-    camOne.position.set(playerPos.x, playerPos.y + camOne.eyeHeight, playerPos.z)
-
-    const activeState = cameraStates.current[0]
-    activeState.position.set(playerPos.x, playerPos.y + activeState.eyeHeight, playerPos.z)
-  })
-
   useFrame((_, delta) => {
-    const activeState = cameraStates.current[activeCameraIndex.current]
-    const playerBody = playerBodyRef.current
+    const idx = activeCameraIndex.current
+    const activeState = cameraStates.current[idx]
 
     FP_EULER.set(activeState.pitch, activeState.yaw, 0)
     camera.quaternion.setFromEuler(FP_EULER)
-    camera.position.copy(activeState.position)
 
-    FP_FORWARD.set(0, 0, -1).applyQuaternion(camera.quaternion).setY(0).normalize()
-    FP_RIGHT.set(1, 0, 0).applyQuaternion(camera.quaternion).setY(0).normalize()
+    if (idx === 0) {
+      if (!isDeadRef.current && playerVisualRef.current) {
+        playerVisualRef.current.getWorldPosition(TMP_WORLD)
+        const eye = cameraStates.current[0].eyeHeight
+        camera.position.set(TMP_WORLD.x, TMP_WORLD.y + eye, TMP_WORLD.z)
+      }
+    } else {
+      FP_FORWARD.set(0, 0, -1).applyQuaternion(camera.quaternion).setY(0).normalize()
+      FP_RIGHT.set(1, 0, 0).applyQuaternion(camera.quaternion).setY(0).normalize()
 
-    const step = MOVE_SPEED * delta
-
-    if (activeCameraIndex.current !== 0) {
+      const step = MOVE_SPEED * delta
       if (moveState.current.forward) activeState.position.addScaledVector(FP_FORWARD, step)
       if (moveState.current.backward) activeState.position.addScaledVector(FP_FORWARD, -step)
       if (moveState.current.left) activeState.position.addScaledVector(FP_RIGHT, -step)
@@ -266,11 +262,8 @@ function PlayerController({ spawnPosition = [0, 0.65, 0] }) {
       if (moveState.current.up) {
         activeState.position.y += MOVE_SPEED * delta
       }
-    } else if (playerBody) {
-      const playerPos = playerBody.translation()
-      activeState.position.set(playerPos.x, playerPos.y + activeState.eyeHeight, playerPos.z)
+      camera.position.copy(activeState.position)
     }
-    camera.position.copy(activeState.position)
 
     const markerMesh = markerRefs.current[1]
     if (markerMesh) {
@@ -294,11 +287,15 @@ function PlayerController({ spawnPosition = [0, 0.65, 0] }) {
         colliders={false}
         enabledRotations={[false, false, false]}
         canSleep={false}
+        linearDamping={0.3}
+        angularDamping={0}
         ccd
         position={spawnPosition}
       >
-        <CapsuleCollider args={[0.35, 0.3]} />
-        <PlayerObject />
+        <CapsuleCollider args={[0.35, 0.3]} friction={0.8} restitution={0} />
+        <group ref={playerVisualRef}>
+          <PlayerObject />
+        </group>
       </RigidBody>
       <CameraMarker markerRef={(el) => (markerRefs.current[1] = el)} position={[0, 1.6, -5]} />
     </>
