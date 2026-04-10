@@ -695,7 +695,7 @@ function Scene() {
         <PlayerController spawnPosition={playerSpawn} />
         <SceneLighting onFadeComplete={advanceToNextLevel} />
         <TileSpacingGrid />
-        <LevelGrid
+        {/* <LevelGrid
           baseRows={baseRows}
           upperWallLayers={upperWallLayers}
           roofRows={roofRows}
@@ -706,7 +706,7 @@ function Scene() {
           showDebug={showPhysicsDebug}
           roofHeight={roofHeight}
           wallCollisionsEnabled={WALL_COLLISIONS_ENABLED}
-        />
+        /> */}
       </Physics>
     </>
   );
